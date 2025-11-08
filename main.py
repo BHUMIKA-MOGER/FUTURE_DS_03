@@ -66,7 +66,7 @@ async def get_ai_review(code_diff: str) -> str:
     # 3. Initialize and call the local Ollama LLM
     try:
         # Connects to http://localhost:11434 by default, or uses OLLAMA_BASE_URL if set
-        llm = Ollama(model="mistral", base_url=OLLAMA_URL) 
+        llm = Ollama(model="tinyllama", base_url=OLLAMA_URL)
         
         print("LOG: Sending diff to Mistral for analysis...")
         response = llm.invoke(full_prompt)
