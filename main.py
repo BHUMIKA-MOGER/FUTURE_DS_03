@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from dotenv import load_dotenv
 from github import Github
+from langchain_community.llms import Ollama
 from langchain_community.llms import Ollama # For talking to your local Mistral model
 import os
 import json
@@ -12,7 +13,7 @@ load_dotenv()
 
 # Get tokens and URLs from environment variables
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-OLLAMA_URL = os.getenv("OLLAMA_BASE_URL")
+
 
 if not GITHUB_TOKEN:
     raise ValueError("GITHUB_TOKEN not found in environment variables.")
@@ -48,8 +49,8 @@ async def get_pr_diff(repo_full_name: str, pr_number: int) -> str:
         return ""
 
 async def get_ai_review(code_diff: str) -> str:
-    """Sends the code diff to the local LLM (Mistral) for review."""
-    
+    """Sends the code diff to the LLM (Gemini) for review."""
+
     # 1. Define the role for the LLM (Prompt Engineering)
     system_prompt = (
         "You are an expert Python software engineer and security reviewer. "
@@ -59,40 +60,48 @@ async def get_ai_review(code_diff: str) -> str:
         "If the code is flawless, state only: '🤖 Review: LGTM (Looks Good To Me)'. "
         "Keep the review concise, limited to 5-7 points max."
     )
-    
-    # 2. Prepare the full prompt for Mistral
+
+    # 2. Prepare the full prompt for the LLM
     full_prompt = f"{system_prompt}\n\nReview this code diff:\n\n{code_diff}"
-    
-    # 3. Initialize and call the local Ollama LLM
+
+    # 3. Initialize and call the Gemini LLM
     try:
-        # Connects to http://localhost:11434 by default, or uses OLLAMA_BASE_URL if set
-        llm = Ollama(model="tinyllama", base_url=OLLAMA_URL)
-        
-        print("LOG: Sending diff to Mistral for analysis...")
+        # --- NEW CODE: Initialize ChatGoogleGenerativeAI ---
+        # The key is automatically read from the GEMINI_API_KEY environment variable.
+        llm = Ollama(
+            base_url="http://127.0.0.1:11434",
+            model="phi-3-mini", 
+            temperature=0 # Use low temperature for deterministic, factual review
+        )
+        # ----------------------------------------------------
+
+        print("LOG: Sending diff to Gemini for analysis...")
         response = llm.invoke(full_prompt)
-        
-        return response
+
+        # Chat models return an AIMessage object, so we access the content
+        return response.content
 
     except Exception as e:
-        return f"🚨 AI Review Failed: Could not connect to local Ollama server. Error: {e}"
+        return f"🚨 AI Review Failed: Could not connect to the AI model. Check your connection and ensure the model is running. Error: {e}"
+
+# --- 3. (Optional) Update Post Comment Text ---
 
 async def post_review_comment(repo_full_name: str, pr_number: int, review_comment: str):
     """Posts the final AI review back to the Pull Request on GitHub."""
     try:
-        repo = g.get_repo(repo_full_name)
-        pr = repo.get_pull(pr_number)
-        
+        # ... (other GitHub code remains the same)
+
         final_comment = (
             "## 🤖 AI Code Review Summary\n\n"
-            "*(Powered by local Mistral LLM)*\n\n"
+            "*(Powered by **Phi-3 Mini** LLM)*\n\n"  # Update this line
             f"{review_comment}"
         )
         pr.create_issue_comment(final_comment)
         print(f"LOG: Successfully posted review for PR #{pr_number}")
         
-    except Exception as e:
-        print(f"Error posting comment to GitHub: {e}")
-
+    except Exception as e: # <--- ADD THIS BLOCK
+        print(f"Error posting review for PR #{pr_number}: {e}")
+        
 async def process_pull_request_review(repo_full_name: str, pr_number: int):
     """Orchestrates the entire review pipeline."""
     
@@ -147,6 +156,6 @@ if __name__ == "__main__":
     # Start the server on port 8000
     print("\n--- Starting AI Code Review Bot ---")
     print(f"GitHub Bot Initialized for user: {g.get_user().login}")
-    print("WARNING: Ensure Ollama server is running (http://localhost:11434) and the 'mistral' model is pulled.")
+    print("WARNING: Ensure Ollama server is running (http://localhost:11434) and the 'phi-3-mini' model is pulled.")
     
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
