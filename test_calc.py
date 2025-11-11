@@ -1,6 +1,7 @@
-def sum_two_numbers(a, b):
-    # This is the final code to be reviewed!
-    return a + b
+def reverse_string(s: str) -> str:
+    """Reverses the order of characters in a given string."""
+    return s[::-1]
 
-def multiply_two_numbers(a, b):
-    return a * b
+# New functionality to review
+def capitalize_words(s: str) -> str:
+    return s.title()
