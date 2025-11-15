@@ -4,18 +4,21 @@ from dotenv import load_dotenv
 
 from github import Github
 
-from langchain_community.llms import Ollama
-
 import os
 
 import json
 
 from github.PullRequest import PullRequest 
 
+from langchain_community.llms import OllamaLLM
+
+from langchain_community.llms.ollama import Ollama
+
 from github.Repository import Repository 
 
 from langchain_ollama import OllamaLLM
 
+from langchain_community.llms import OllamaLLM
 # --- 1. CONFIGURATION ---
 
 
