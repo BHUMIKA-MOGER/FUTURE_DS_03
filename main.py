@@ -14,7 +14,7 @@ from github.PullRequest import PullRequest
 
 from github.Repository import Repository 
 
-
+from langchain_ollama import OllamaLLM
 
 # --- 1. CONFIGURATION ---
 
