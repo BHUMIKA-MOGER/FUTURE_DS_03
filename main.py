@@ -13,6 +13,7 @@ from github.PullRequest import PullRequest
 from github.Repository import Repository 
 
 from langchain_community.llms.ollama import Ollama
+from langchain_ollama import OllamaLLM
 # --- 1. CONFIGURATION ---
 
 
@@ -137,7 +138,7 @@ async def get_ai_review(code_diff: str) -> str:
 
     try:
 
-        llm = Ollama(
+        llm = OllamaLLM(
 
             base_url="http://127.0.0.1:11434",
 
