@@ -10,15 +10,9 @@ import json
 
 from github.PullRequest import PullRequest 
 
-from langchain_community.llms import OllamaLLM
-
-from langchain_community.llms.ollama import Ollama
-
 from github.Repository import Repository 
 
-from langchain_ollama import OllamaLLM
-
-from langchain_community.llms import OllamaLLM
+from langchain_community.llms.ollama import Ollama
 # --- 1. CONFIGURATION ---
 
 
