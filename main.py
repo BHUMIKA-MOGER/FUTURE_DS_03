@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-<<<<<<< HEAD
+
 
 from dotenv import load_dotenv
 
@@ -328,7 +328,7 @@ if __name__ == "__main__":
 
     
 
-=======
+
 from dotenv import load_dotenv
 from github import Github
 from langchain_community.llms import Ollama
@@ -488,5 +488,5 @@ if __name__ == "__main__":
     print(f"GitHub Bot Initialized for user: {g.get_user().login}")
     print("WARNING: Ensure Ollama server is running (http://localhost:11434) and the 'phi-3-mini' model is pulled.")
     
->>>>>>> 3777aa005b2474a1d44ace1884df282d41860680
+
     uvicorn.run(app, host="0.0.0.0", port=8001)
