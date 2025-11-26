@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Request, HTTPException
 from dotenv import load_dotenv
 from github import Github
-from langchain_community.llms import Ollama
-from langchain_community.llms import Ollama # For talking to your local Mistral model
 import os
 import json
+from github.PullRequest import PullRequest 
+from github.Repository import Repository 
+# FIX: Use the specific OllamaLLM class from the newer package
+from langchain_ollama import OllamaLLM 
+from langchain_community.llms.ollama import Ollama # Keep for backwards compatibility, though OllamaLLM is preferred
 
 # --- 1. CONFIGURATION ---
 
@@ -13,7 +16,6 @@ load_dotenv()
 
 # Get tokens and URLs from environment variables
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-
 
 if not GITHUB_TOKEN:
     raise ValueError("GITHUB_TOKEN not found in environment variables.")
@@ -49,7 +51,7 @@ async def get_pr_diff(repo_full_name: str, pr_number: int) -> str:
         return ""
 
 async def get_ai_review(code_diff: str) -> str:
-    """Sends the code diff to the LLM (Gemini) for review."""
+    """Sends the code diff to the LLM (Phi-3) for review."""
 
     # 1. Define the role for the LLM (Prompt Engineering)
     system_prompt = (
@@ -64,61 +66,64 @@ async def get_ai_review(code_diff: str) -> str:
     # 2. Prepare the full prompt for the LLM
     full_prompt = f"{system_prompt}\n\nReview this code diff:\n\n{code_diff}"
 
-    # 3. Initialize and call the Gemini LLM
+    # 3. Initialize and call the Ollama LLM
     try:
-        # --- NEW CODE: Initialize ChatGoogleGenerativeAI ---
-        # The key is automatically read from the GEMINI_API_KEY environment variable.
-        llm = Ollama(
+        # Use the preferred OllamaLLM class from langchain_ollama
+        llm = OllamaLLM(
             base_url="http://127.0.0.1:11434",
-            model="phi-3", 
-            temperature=0 # Use low temperature for deterministic, factual review
+            # Ensure this model name is correct on your local Ollama setup
+            model="phi3:mini", 
+            temperature=0 
         )
-        # ----------------------------------------------------
 
-        print("LOG: Sending diff to Gemini for analysis...")
+        print("LOG: Sending diff to Phi-3 Mini for analysis...") 
         response = llm.invoke(full_prompt)
 
-        # Chat models return an AIMessage object, so we access the content
-        return response.content
+        return response # Ollama's invoke returns the content directly
 
     except Exception as e:
         return f"🚨 AI Review Failed: Could not connect to the AI model. Check your connection and ensure the model is running. Error: {e}"
 
-# --- 3. (Optional) Update Post Comment Text ---
+# --- 3. POST COMMENT LOGIC ---
 
-async def post_review_comment(repo_full_name: str, pr_number: int, review_comment: str):
+async def post_review_comment(pr: PullRequest, review_comment: str):
     """Posts the final AI review back to the Pull Request on GitHub."""
     try:
-        # ... (other GitHub code remains the same)
-
         final_comment = (
             "## 🤖 AI Code Review Summary\n\n"
-            "*(Powered by **Phi-3 Mini** LLM)*\n\n"  # Update this line
+            "*(Powered by **Phi-3 Mini** LLM)*\n\n" # Updated model name
             f"{review_comment}"
         )
-        pr.create_issue_comment(final_comment)
-        print(f"LOG: Successfully posted review for PR #{pr_number}")
+        # FIX: The 'pr' object is correctly passed to this function.
+        pr.create_issue_comment(final_comment) 
+        print(f"LOG: Successfully posted review for PR #{pr.number}")
         
-    except Exception as e: # <--- ADD THIS BLOCK
-        print(f"Error posting review for PR #{pr_number}: {e}")
+    except Exception as e:
+        # This will catch errors related to token permissions
+        print(f"Error posting review for PR #{pr.number}: {e}")
         
 async def process_pull_request_review(repo_full_name: str, pr_number: int):
     """Orchestrates the entire review pipeline."""
+    
+    # FIX: Fetch the Pull Request object once and pass it down.
+    repo = g.get_repo(repo_full_name) 
+    pr = repo.get_pull(pr_number) 
     
     # Step 1: Fetch the Diff
     diff = await get_pr_diff(repo_full_name, pr_number)
     
     if not diff:
-        # If the diff is empty (e.g., a documentation change with no code), skip review
-        return post_review_comment(repo_full_name, pr_number, "No code changes detected to review.")
+        # Pass the 'pr' object to post_review_comment
+        return await post_review_comment(pr, review_comment="No code changes detected to review.")
         
     # Step 2: Get AI Review
     review_comment = await get_ai_review(diff)
     
     # Step 3: Post Comment to GitHub
-    await post_review_comment(repo_full_name, pr_number, review_comment)
+    # Pass the 'pr' object to post_review_comment
+    await post_review_comment(pr, review_comment)
     
-# --- 3. WEBHOOK ENDPOINT ---
+# --- 4. WEBHOOK ENDPOINT ---
 
 @app.post("/webhook")
 async def handle_github_webhook(request: Request):
@@ -146,16 +151,20 @@ async def handle_github_webhook(request: Request):
         
         # Return a quick 200 OK response to GitHub
         return {"message": f"Review initiated for PR #{pr_number}"}
-    
-    return {"message": "Event ignored"}
+    else:
+        # Ignore events that are not PR opened or synchronize (e.g., closed, labeled)
+        return {"message": "Event ignored - not a required action (opened or synchronize)."}
 
-# --- 4. START SERVER COMMAND ---
+# --- 5. START SERVER COMMAND ---
 
 if __name__ == "__main__":
     import uvicorn
-    # Start the server on port 8000
     print("\n--- Starting AI Code Review Bot ---")
-    print(f"GitHub Bot Initialized for user: {g.get_user().login}")
-    print("WARNING: Ensure Ollama server is running (http://localhost:11434) and the 'phi-3-mini' model is pulled.")
+    try:
+        print(f"GitHub Bot Initialized for user: {g.get_user().login}")
+    except Exception as e:
+         print(f"CRITICAL ERROR: Failed to initialize GitHub Bot. Check GITHUB_TOKEN permissions. Error: {e}")
+    print("WARNING: Ensure Ollama server is running (http://localhost:11434) and the 'phi3:mini' model is ready.")
     
+    # Use port 8001 as previously identified
     uvicorn.run(app, host="0.0.0.0", port=8001)
