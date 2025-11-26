@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 def remove_duplicates_in_place(data: list) -> list:
     """
     ATTENTION: This function contains a bug!
@@ -25,12 +25,12 @@ def remove_duplicates_in_place(data: list) -> list:
 # result = remove_duplicates_in_place(original_list) 
 # The expected result is [1, 2, 3, 4, 5], but the actual result 
 # will still contain some duplicates, like [1, 2, 3, 4, 5].
-=======
+
 def sum_two_numbers(a, b):
     # This function is used to add two inputs together
     return a + b
 
 def multiply_two_numbers(a, b):
     # This is a new function for the bot to review!
-    return a * b
->>>>>>> 3777aa005b2474a1d44ace1884df282d41860680
+    return a - b
+
